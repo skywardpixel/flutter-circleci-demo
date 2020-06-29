@@ -1,0 +1,126 @@
+version: 2.1
+orbs:
+  aws-cli: circleci/aws-cli@1.2.0
+commands:
+  install_flutter:
+    description:
+      Install Flutter and set up paths.
+    parameters:
+      flutter_version:
+        description: Flutter version
+        type: string
+        default: stable
+    steps:
+      - run:
+          name: Set up Flutter
+          command: |
+            echo 'export FLUTTER_HOME=${HOME}/sdks/flutter' >> $BASH_ENV
+            echo 'export FLUTTER_VERSION=<< parameters.flutter_version >>' >> $BASH_ENV
+            echo 'export FLUTTER_ROOT=${FLUTTER_HOME}' >> $BASH_ENV
+            echo 'export PATH=${PATH}:${FLUTTER_HOME}/bin:${FLUTTER_HOME}/bin/cache/dart-sdk/bin:${HOME}/.pub-cache/bin' >> $BASH_ENV
+            source $BASH_ENV
+            git clone --branch ${FLUTTER_VERSION} https://github.com/flutter/flutter.git ${FLUTTER_HOME}
+            (yes || true) | flutter doctor --android-licenses && flutter doctor
+  early_return_for_forked_pull_requests:
+    description: >-
+      If this build is from a fork, stop executing the current job and return success.
+      This is useful to avoid steps that will fail due to missing credentials.
+    steps:
+      - run:
+          name: Early return if this build is from a forked PR
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+                echo "Nothing to do for forked PRs, so marking this step successful"
+                circleci step halt
+            elif [ -z "${AWS_ACCESS_KEY_ID_TEST}" -o -z "${AWS_SECRET_ACCESS_KEY_TEST}" ]; then
+                echo "No AWS credentials in test environment. Integration tests won't run." 1>&2
+                exit 1
+            fi
+  setup_emulator:
+    description: >-
+      setup emulator
+    steps:
+      - run:
+          name: Setup emulator
+          command: |
+            echo y | sdkmanager "system-images;android-24;default;armeabi-v7a"
+            echo "no" | avdmanager create avd -n test -k "system-images;android-24;default;armeabi-v7a"
+      - run:
+          name: Launch emulator
+          command: |
+            export LD_LIBRARY_PATH=${ANDROID_HOME}/emulator/lib64:${ANDROID_HOME}/emulator/lib64/qt/lib
+            emulator -avd test -no-boot-anim -no-window -accel auto -verbose
+          background: true
+      - run:
+          name: Launch logcat
+          command:
+            adb logcat > logcat.log
+          background: true
+      - run:
+          name: Wait emulator
+          command: |
+            echo "wait for emulator to have booted"
+            circle-android wait-for-boot
+            python3 .circleci/unlock_emulator_screen.py
+jobs:
+  build:
+    docker:
+      - image: circleci/android:api-29
+    resource_class: large
+    environment:
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - install_flutter
+      - checkout
+      - run: flutter build
+  unit_test:
+    docker:
+      - image: circleci/android:api-29
+    resource_class: large
+    environment:
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - install_flutter
+      - checkout
+      - run: flutter test
+  int_test_emulator:
+    docker:
+      - image: circleci/android:api-29
+    resource_class: large
+    environment:
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - checkout
+      - install_flutter
+      - setup_emulator
+      - run:
+          name: Run flutter drive
+          no_output_timeout: 30m
+          command: flutter drive --target=test_driver/app.dart --verbose
+      - store_artifacts:
+          path: logcat.log
+  int_test_device_farm:
+    docker:
+      - image: circleci/android:api-29
+    resource_class: large
+    environment:
+      JVM_OPTS: -Xmx3200m
+    steps:
+      - install_flutter
+      - run:
+          name: Install sylph from pub
+          command: pub global activate sylph
+      - checkout
+      - aws-cli/setup
+      - run:
+          name: Run sylph
+          command: $HOME/.pub-cache/bin/sylph
+workflows:
+  run_tests_with_emulator:
+    jobs:
+      - unit_test
+      - int_test_emulator
+  run_tests_on_device_farm:
+      jobs:
+      - unit_test
+      - int_test_device_farm

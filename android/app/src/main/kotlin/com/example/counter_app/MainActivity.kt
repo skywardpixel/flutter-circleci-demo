@@ -1,4 +1,4 @@
-package com.example.device_farm_demo
+package com.example.counter_app
 
 import io.flutter.embedding.android.FlutterActivity
 

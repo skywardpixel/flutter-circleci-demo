@@ -1,4 +1,4 @@
-# device_farm_demo
+# counter_app
 
 A new Flutter project.
 
