@@ -36,9 +36,9 @@ commands:
                 echo "No AWS credentials in test environment. Integration tests won't run." 1>&2
                 exit 1
             fi
-  setup_emulator:
+  setup_android_emulator:
     description: >-
-      setup emulator
+      Setup Android emulator.
     steps:
       - run:
           name: Setup emulator
@@ -62,6 +62,13 @@ commands:
             echo "wait for emulator to have booted"
             circle-android wait-for-boot
             python3 .circleci/unlock_emulator_screen.py
+  pre_start_ios_simulator:
+    description: >-
+      Pre start simulator, build may fail if simulator is not started.
+    steps:
+      - run:
+          name: Pre-start simulator
+          command: bash .circleci/pre_start_ios_simulator.sh
 jobs:
   build:
     docker:
@@ -83,7 +90,7 @@ jobs:
       - install_flutter
       - checkout
       - run: flutter test
-  int_test_emulator:
+  int_test_emulator_android:
     docker:
       - image: circleci/android:api-29
     resource_class: large
@@ -92,7 +99,21 @@ jobs:
     steps:
       - checkout
       - install_flutter
-      - setup_emulator
+      - setup_android_emulator
+      - run:
+          name: Run flutter drive
+          no_output_timeout: 30m
+          command: flutter drive --target=test_driver/app.dart --verbose
+      - store_artifacts:
+          path: logcat.log
+  int_test_emulator_ios:
+    macos:
+      xcode: "11.4.1"
+    resource_class: large
+    steps:
+      - checkout
+      - install_flutter
+      - pre_start_ios_simulator
       - run:
           name: Run flutter drive
           no_output_timeout: 30m
@@ -119,7 +140,8 @@ workflows:
   run_tests_with_emulator:
     jobs:
       - unit_test
-      - int_test_emulator
+      - int_test_emulator_android
+      - int_test_emulator_ios
   run_tests_on_device_farm:
       jobs:
       - unit_test
