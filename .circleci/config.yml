@@ -103,7 +103,7 @@ jobs:
       - run:
           name: Run flutter drive
           no_output_timeout: 30m
-          command: flutter drive --target=test_driver/app.dart --verbose
+          command: flutter drive --target=test_driver/app.dart
       - store_artifacts:
           path: logcat.log
   int_test_emulator_ios:
@@ -117,7 +117,7 @@ jobs:
       - run:
           name: Run flutter drive
           no_output_timeout: 30m
-          command: flutter drive --target=test_driver/app.dart --verbose
+          command: flutter drive --target=test_driver/app.dart
       - store_artifacts:
           path: logcat.log
   int_test_device_farm:
