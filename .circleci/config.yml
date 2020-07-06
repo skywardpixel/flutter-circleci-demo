@@ -140,7 +140,7 @@ workflows:
   run_tests_with_emulator:
     jobs:
       - unit_test
-      - int_test_emulator_android
+      # - int_test_emulator_android
       - int_test_emulator_ios
   run_tests_on_device_farm:
       jobs:
