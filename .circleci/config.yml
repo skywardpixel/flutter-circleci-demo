@@ -21,6 +21,28 @@ commands:
             source $BASH_ENV
             git clone --branch ${FLUTTER_VERSION} https://github.com/flutter/flutter.git ${FLUTTER_HOME}
             (yes || true) | flutter doctor --android-licenses && flutter doctor
+  pre_start_ios_simulator:
+    description: >-
+      Pre start simulator, build may fail if simulator is not started.
+    steps:
+      - run:
+          name: Pre-start simulator
+          command: ./.circleci/pre_start_ios_simulator.sh
+  macos_setup_android:
+    description: >-
+      Set up the Android environment in macOS.
+    steps:
+      - run:
+          name: Set up env
+          command: ./.circleci/android-flutter.sh export-env
+      - run:
+          name: Install Android SDK from Homebrew
+          command: |
+            brew tap homebrew/cask >/dev/null
+            brew cask install android-sdk >/dev/null
+      - run:
+          name: Install emulator from SDK manager
+          command: ./.circleci/android-flutter.sh sdkmanager
   setup_android_emulator:
     description: >-
       Setup Android emulator.
@@ -35,51 +57,16 @@ commands:
             export LD_LIBRARY_PATH=${ANDROID_HOME}/emulator/lib64:${ANDROID_HOME}/emulator/lib64/qt/lib
             emulator -avd TestingAVD -cores 1 -gpu auto -accel on -memory 1024 -no-audio -no-snapshot -no-boot-anim -no-window
           background: true
-      # - run:
-      #     name: Launch logcat
-      #     command:
-      #       adb logcat > logcat.log
-      #     background: true
+      - run:
+          name: Launch logcat
+          command:
+            adb logcat > logcat.log
+          background: true
       - run:
           name: Wait emulator
           command: |
             ./.circleci/android-flutter.sh wait-for-avd
             python3 .circleci/unlock_emulator_screen.py
-  pre_start_ios_simulator:
-    description: >-
-      Pre start simulator, build may fail if simulator is not started.
-    steps:
-      - run:
-          name: Pre-start simulator
-          command: bash .circleci/pre_start_ios_simulator.sh
-  macos_setup_android:
-    description: >-
-      Set up the Android environment in macOS.
-    steps:
-      - run:
-          name: Set up env
-          command: |
-            mkdir -p ~/.android && touch ~/.android/repositories.cfg
-            echo 'export ANDROID_HOME="/usr/local/share/android-sdk"' >> $BASH_ENV
-            echo 'export ANDROID_SDK_ROOT="/usr/local/share/android-sdk"' >> $BASH_ENV
-            echo 'export PATH="$ANDROID_SDK_ROOT/emulator:$ANDROID_SDK_ROOT/tools:$ANDROID_SDK_ROOT/platform-tools:$PATH"' >> $BASH_ENV
-            echo 'export QEMU_AUDIO_DRV=none' >> $BASH_ENV
-            echo 'export JAVA_HOME=$(/usr/libexec/java_home)' >> $BASH_ENV
-            source $BASH_ENV
-      - run:
-          name: Install Android SDK
-          command: |
-            brew tap homebrew/cask >/dev/null
-            brew cask install android-sdk >/dev/null
-      - run:
-          name: Install emulator
-          command: |
-            (yes || true) | sdkmanager "platform-tools" "tools" >/dev/null
-            (yes || true) | sdkmanager "platforms;android-28" "system-images;android-28;default;x86_64" >/dev/null
-            (yes || true) | sdkmanager "emulator" --channel=3 >/dev/null
-            (yes || true) | sdkmanager "build-tools;28.0.3" >/dev/null
-            (yes || true) | sdkmanager --licenses >/dev/null
-            (yes || true) | sdkmanager --list
 jobs:
   build:
     docker:
@@ -121,7 +108,6 @@ jobs:
   int_test_emulator_ios:
     macos:
       xcode: "11.4.1"
-    resource_class: large
     steps:
       - checkout
       - install_flutter
@@ -149,12 +135,9 @@ jobs:
           name: Run sylph
           command: $HOME/.pub-cache/bin/sylph
 workflows:
-  run_tests_with_emulator:
+  run_tests:
     jobs:
       - unit_test
       - int_test_emulator_android
       - int_test_emulator_ios
-  run_tests_on_device_farm:
-      jobs:
-      - unit_test
       - int_test_device_farm
