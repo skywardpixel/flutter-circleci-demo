@@ -43,19 +43,7 @@ commands:
       - run:
           name: Wait emulator
           command: |
-            echo "wait for emulator to have booted"
-            boot=""
-            echo "Waiting for AVD to finish booting"
-            until [[ "$boot" =~ "1" ]]; do
-            sleep 5
-            boot=$(/usr/local/share/android-sdk/platform-tools/adb -e shell getprop sys.boot_completed 2>&1)
-            done
-            # extra time to let the OS settle
-            sleep 15
-            adb shell settings put global window_animation_scale 0
-            adb shell settings put global transition_animation_scale 0
-            adb shell settings put global animator_duration_scale 0
-            echo "Android Virtual Device is now ready."
+            ./.circleci/android-flutter.sh wait-for-avd
             python3 .circleci/unlock_emulator_screen.py
   pre_start_ios_simulator:
     description: >-
