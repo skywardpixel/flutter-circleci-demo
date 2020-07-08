@@ -49,13 +49,10 @@ commands:
     steps:
       - run:
           name: Setup emulator
-          command: |
-            echo "no" | avdmanager create avd --force --name TestingAVD -k "system-images;android-28;default;x86_64" --tag default --device pixel
+          command: ./.circleci/android-flutter.sh create-emulator
       - run:
           name: Launch emulator
-          command: |
-            export LD_LIBRARY_PATH=${ANDROID_HOME}/emulator/lib64:${ANDROID_HOME}/emulator/lib64/qt/lib
-            emulator -avd TestingAVD -cores 1 -gpu auto -accel on -memory 1024 -no-audio -no-snapshot -no-boot-anim -no-window
+          command: ./.circleci/android-flutter.sh start-emulator
           background: true
       - run:
           name: Launch logcat
