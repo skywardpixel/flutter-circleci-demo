@@ -32,6 +32,9 @@ case $1 in
     adb shell settings put global animator_duration_scale 0
     echo "Android Virtual Device is now ready."
     ;;
+  create-emulator)
+    echo "no" | avdmanager create avd --force --name TestingAVD -k "system-images;android-28;default;x86_64" --tag default --device pixel
+    ;;
   start-emulator)
     $ANDROID_HOME/emulator/emulator @TestingAVD -version
     $ANDROID_HOME/emulator/emulator @TestingAVD -cores 1 -gpu auto -accel on -memory 1024 -no-audio -no-snapshot -no-boot-anim -no-window
