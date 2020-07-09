@@ -135,6 +135,21 @@ workflows:
   run_tests:
     jobs:
       - unit_test
-      - int_test_emulator_android
-      - int_test_emulator_ios
-      - int_test_device_farm
+      - int_test_emulator_android:
+          filters:
+            branches:
+              only:
+                - master
+                - release
+      - int_test_emulator_ios:
+          filters:
+            branches:
+              only:
+                - master
+                - release
+      - int_test_device_farm:
+          filters:
+            branches:
+              only:
+                - master
+                - release
